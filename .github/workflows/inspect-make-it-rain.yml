@@ -1,0 +1,56 @@
+name: Inspect Make It Rain IPA
+
+# Downloads the Make It Rain IPA on the runner and uploads only small
+# diagnostic metadata (Info.plist, file listing, class-name strings) so an
+# emulator compatibility problem can be debugged. The IPA itself is not
+# uploaded anywhere.
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - .github/workflows/inspect-make-it-rain.yml
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@main
+
+      - name: Download IPA
+        run: |
+          set -eu
+          chmod +x dev-scripts/get-make-it-rain.sh
+          ./dev-scripts/get-make-it-rain.sh "$RUNNER_TEMP/apps"
+
+      - name: Extract metadata
+        run: |
+          set -eu
+          out="$GITHUB_WORKSPACE/inspect"
+          work="$RUNNER_TEMP/ipa"
+          mkdir -p "$out" "$work"
+          ipa="$(ls "$RUNNER_TEMP"/apps/*.ipa | head -n 1)"
+          unzip -q "$ipa" -d "$work"
+          app="$(ls -d "$work"/Payload/*.app | head -n 1)"
+
+          (cd "$work" && find Payload -printf '%P\t%s\n' | sort) > "$out/listing.txt"
+
+          python3 - "$app/Info.plist" > "$out/Info.plist.json" <<'EOF'
+          import json, plistlib, sys
+          with open(sys.argv[1], 'rb') as f:
+              print(json.dumps(plistlib.load(f), indent=2, default=repr))
+          EOF
+
+          exe="$(python3 -c "import plistlib,sys;print(plistlib.load(open(sys.argv[1],'rb')).get('CFBundleExecutable',''))" "$app/Info.plist")"
+          echo "executable: $exe" > "$out/binary.txt"
+          file "$app/$exe" >> "$out/binary.txt" || true
+          strings -n 4 "$app/$exe" > "$work/strings.txt" || true
+          grep -E 'OBJC_CLASS_\$_' "$work/strings.txt" | sort -u | head -n 3000 > "$out/classes.txt" || true
+          grep -iE 'appdelegate|mainwindow|\.nib|makeKeyAndVisible|UIWindow|applicationDidFinishLaunching|setWindow|rootViewController|EAGLView|Cocos|AdColony|Chartboost|Flurry|TestFlight|Crittercism' \
+            "$work/strings.txt" | sort -u | head -n 1500 > "$out/interesting-strings.txt" || true
+          ls -la "$out"
+
+      - uses: actions/upload-artifact@main
+        with:
+          name: MakeItRain_IPA_metadata
+          path: inspect/
