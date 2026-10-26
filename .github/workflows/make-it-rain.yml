@@ -286,6 +286,8 @@ jobs:
     needs: [build-linux]
     if: ${{ github.event_name != 'workflow_dispatch' || inputs.run_smoke_test }}
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - name: Checkout (scripts only)
         uses: actions/checkout@main
@@ -325,3 +327,21 @@ jobs:
           name: MakeItRain_Linux_smoke_log
           path: bundle/run.log
           if-no-files-found: ignore
+
+      # Also publish the emulator log (text only) on its own branch so it can
+      # be read without downloading the artifact.
+      - name: Push emulator log to a branch
+        if: ${{ always() }}
+        run: |
+          set -eu
+          [ -f bundle/run.log ] || exit 0
+          mkdir "$RUNNER_TEMP/log"
+          cp bundle/run.log "$RUNNER_TEMP/log/run.log"
+          [ -f bundle/touchHLE_log.txt ] && cp bundle/touchHLE_log.txt "$RUNNER_TEMP/log/" || true
+          cd "$RUNNER_TEMP/log"
+          git init -q -b make-it-rain-smoke-log
+          git config user.name "github-actions"
+          git config user.email "github-actions@users.noreply.github.com"
+          git add -A
+          git commit -q -m "Make It Rain smoke-test log for ${{ github.sha }}"
+          git push -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" make-it-rain-smoke-log

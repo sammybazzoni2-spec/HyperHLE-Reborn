@@ -409,11 +409,12 @@ fn objc_msgSend_inner(
             log!(
                 "Warning: receiver {:?} has nil isa! Ignoring message \"{}\". \
                  (This usually means the object was already freed — use-after-free \
-                 in guest code.) [{}/{}]",
+                 in guest code.) [{}/{}] [diag] guest lr={:#x}",
                 receiver,
                 selector.as_str(&env.mem),
                 count + 1,
                 NIL_ISA_LOG_LIMIT,
+                env.cpu.regs()[crate::cpu::Cpu::LR],
             );
         } else if count == NIL_ISA_LOG_LIMIT {
             log!(

@@ -71,8 +71,8 @@ pub const CLASSES: ClassExports = objc_classes! {
 
     let list = &mut env.framework_state.uikit.ui_view.ui_window.windows;
     list.push(this);
-    log_dbg!(
-        "New window: {:?}. New list of all windows: {:?}",
+    log!(
+        "[diag] New window: {:?}. New list of all windows: {:?}",
         this,
         list,
     );
@@ -146,8 +146,8 @@ pub const CLASSES: ClassExports = objc_classes! {
     if let Some(idx) = list.iter().position(|&w| w == this) {
         list.remove(idx);
     }
-    log_dbg!(
-        "Deallocating window {:?}. New list of all windows: {:?}",
+    log!(
+        "[diag] Deallocating window {:?}. New list of all windows: {:?}",
         this,
         list,
     );
@@ -236,6 +236,7 @@ pub const CLASSES: ClassExports = objc_classes! {
 }
 
 - (())makeKeyAndVisible {
+    log!("[diag] [(UIWindow*){:?} makeKeyAndVisible]", this);
     // MakeKeyVisibleFix (from XaViewDnK fork): some engines (e.g. Asphalt 8's
     // Jet) create the window with a zero frame and only size it via
     // `makeKeyAndVisible`. Without this, the window stays 0x0 and every

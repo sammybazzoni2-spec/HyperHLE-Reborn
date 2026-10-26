@@ -1055,7 +1055,21 @@ pub(super) fn UIApplicationMain(
             "application:didFinishLaunchingWithOptions:",
         ) {
             let empty_dict: id = msg_class![env; NSDictionary dictionary];
-            () = msg![env; delegate application:ui_application didFinishLaunchingWithOptions:empty_dict];
+            {
+                let class: crate::objc::Class = msg![env; delegate class];
+                let name = env.objc.get_class_name(class).to_string();
+                log!(
+                    "[diag] Sending application:didFinishLaunchingWithOptions: to {:?} (class {})",
+                    delegate,
+                    name
+                );
+            }
+            let launched: bool = msg![env; delegate application:ui_application didFinishLaunchingWithOptions:empty_dict];
+            log!(
+                "[diag] application:didFinishLaunchingWithOptions: returned {}; {} window(s) registered",
+                launched,
+                env.framework_state.uikit.ui_view.ui_window.windows.len()
+            );
         } else if env.objc.object_has_method_named(
             &env.mem,
             delegate,
