@@ -1,0 +1,124 @@
+{
+  "DTCompiler": "com.apple.compilers.llvm.clang.1_0",
+  "CFBundleInfoDictionaryVersion": "6.0",
+  "DTPlatformVersion": "8.2",
+  "CFBundleName": "Make It Rain",
+  "DTSDKName": "iphoneos8.2",
+  "UIViewControllerBasedStatusBarAppearance": false,
+  "CFBundleIcons": {
+    "CFBundlePrimaryIcon": {
+      "CFBundleIconFiles": [
+        "AppIcon29x29",
+        "AppIcon40x40",
+        "AppIcon57x57",
+        "AppIcon60x60"
+      ]
+    }
+  },
+  "LSRequiresIPhoneOS": true,
+  "CFBundleDisplayName": "Make It Rain",
+  "UIStatusBarHidden~ipad": true,
+  "DTSDKBuild": "12D508",
+  "CFBundleShortVersionString": "2.3",
+  "CFBundleSupportedPlatforms": [
+    "iPhoneOS"
+  ],
+  "UISupportedInterfaceOrientations": [
+    "UIInterfaceOrientationPortrait",
+    "UIInterfaceOrientationPortraitUpsideDown"
+  ],
+  "BuildMachineOSBuild": "14C1510",
+  "DTPlatformBuild": "12D508",
+  "MinimumOSVersion": "6.0",
+  "DTXcodeBuild": "6C131e",
+  "CFBundleDevelopmentRegion": "English",
+  "CFBundlePackageType": "APPL",
+  "CFBundleVersion": "2030005",
+  "UIAppFonts": [
+    "Fonts/Shag-Lounge.ttf",
+    "Fonts/Avenir LT 95 Black.ttf"
+  ],
+  "UIStatusBarHidden": true,
+  "UILaunchImageFile": "LaunchImage",
+  "FacebookAppID": "506165572834075",
+  "UILaunchImages": [
+    {
+      "UILaunchImageOrientation": "Portrait",
+      "UILaunchImageName": "LaunchImage-800-Portrait-736h",
+      "UILaunchImageSize": "{414, 736}",
+      "UILaunchImageMinimumOSVersion": "8.0"
+    },
+    {
+      "UILaunchImageOrientation": "Portrait",
+      "UILaunchImageName": "LaunchImage-800-667h",
+      "UILaunchImageSize": "{375, 667}",
+      "UILaunchImageMinimumOSVersion": "8.0"
+    },
+    {
+      "UILaunchImageOrientation": "Portrait",
+      "UILaunchImageName": "LaunchImage-700",
+      "UILaunchImageSize": "{320, 480}",
+      "UILaunchImageMinimumOSVersion": "7.0"
+    },
+    {
+      "UILaunchImageOrientation": "Portrait",
+      "UILaunchImageName": "LaunchImage-700-568h",
+      "UILaunchImageSize": "{320, 568}",
+      "UILaunchImageMinimumOSVersion": "7.0"
+    },
+    {
+      "UILaunchImageOrientation": "Portrait",
+      "UILaunchImageName": "LaunchImage-700-Portrait",
+      "UILaunchImageSize": "{768, 1024}",
+      "UILaunchImageMinimumOSVersion": "7.0"
+    }
+  ],
+  "UIDeviceFamily": [
+    1,
+    2
+  ],
+  "Fabric": {
+    "Kits": [
+      {
+        "KitName": "Crashlytics",
+        "KitInfo": {}
+      }
+    ],
+    "APIKey": "a3fecadfbdd6f2bf338f5811554f0f320f3f3dbf"
+  },
+  "CFBundleIdentifier": "com.SpaceInch.LoveOfMoney",
+  "DTXcode": "0620",
+  "AppBundle": "MakeItRain",
+  "CFBundleExecutable": "Make It Rain",
+  "CFBundleIcons~ipad": {
+    "CFBundlePrimaryIcon": {
+      "CFBundleIconFiles": [
+        "AppIcon29x29",
+        "AppIcon40x40",
+        "AppIcon57x57",
+        "AppIcon60x60",
+        "AppIcon50x50",
+        "AppIcon72x72",
+        "AppIcon76x76"
+      ]
+    }
+  },
+  "CFBundleSignature": "????",
+  "DTPlatformName": "iphoneos",
+  "FacebookAppName": "Make It Rain",
+  "CFBundleResourceSpecification": "ResourceRules.plist",
+  "CFBundleURLTypes": [
+    {
+      "CFBundleTypeRole": "Editor",
+      "CFBundleURLSchemes": [
+        "fb506165572834075"
+      ]
+    },
+    {
+      "CFBundleTypeRole": "Editor",
+      "CFBundleURLSchemes": [
+        "makeitrain4t"
+      ]
+    }
+  ]
+}

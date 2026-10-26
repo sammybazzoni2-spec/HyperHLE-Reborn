@@ -1,0 +1,2 @@
+executable: Make It Rain
+/home/runner/work/_temp/ipa/Payload/Make It Rain.app/Make It Rain: Mach-O armv7 executable, flags:<NOUNDEFS|DYLDLINK|TWOLEVEL|WEAK_DEFINES|BINDS_TO_WEAK>
