@@ -1,0 +1,327 @@
+name: Build HyperHLE for Make It Rain
+
+# Builds HyperHLE for Linux, Windows and Android with the Make It Rain helper
+# scripts included, and smoke-tests the game on Linux.
+#
+# The game's IPA is NOT stored in the repository or put into any artifact.
+# The helper scripts (dev-scripts/get-make-it-rain.*) download it from the
+# Internet Archive on the machine that runs it. The smoke-test job downloads
+# it only to run it and discards it.
+#
+# This workflow is separate from HyperHLE_release.yml and does not take part
+# in releases.
+
+on:
+  workflow_dispatch:
+    inputs:
+      run_smoke_test:
+        description: Download Make It Rain and run it on Linux for a minute
+        type: boolean
+        default: true
+  push:
+    paths:
+      - .github/workflows/make-it-rain.yml
+      - dev-scripts/get-make-it-rain.sh
+      - dev-scripts/get-make-it-rain.ps1
+      - dev-scripts/run-make-it-rain.sh
+
+env:
+  CARGO_TERM_COLOR: always
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@main
+        with:
+          submodules: recursive
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Install Linux build dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq \
+            build-essential \
+            pkg-config \
+            libasound2-dev \
+            libpulse-dev \
+            libsndio-dev \
+            libdbus-1-dev \
+            libudev-dev \
+            libx11-dev \
+            libxext-dev \
+            libxcursor-dev \
+            libxi-dev \
+            libxrandr-dev \
+            libxss-dev \
+            libxxf86vm-dev \
+            libxkbcommon-dev \
+            libwayland-dev \
+            wayland-protocols \
+            libgl1-mesa-dev \
+            libegl1-mesa-dev
+
+      - name: Cache Rust build artifacts
+        uses: Swatinem/rust-cache@master
+
+      - name: Try to get cached copy of Boost
+        id: cache-boost
+        uses: actions/cache@main
+        with:
+          path: vendor/boost
+          key: boost_1_81_0_linux
+
+      - if: ${{ steps.cache-boost.outputs.cache-hit != 'true' }}
+        name: Download Boost
+        run: curl -L -O "https://archives.boost.io/release/1.81.0/source/boost_1_81_0.tar.gz"
+
+      - if: ${{ steps.cache-boost.outputs.cache-hit != 'true' }}
+        name: Extract Boost
+        run: mkdir -p vendor && tar xzf boost_1_81_0.tar.gz -C vendor && mv vendor/boost_1_81_0 vendor/boost
+
+      - name: Setup CMake
+        uses: lukka/get-cmake@latest
+        with:
+          cmakeVersion: "~3.29.0"
+
+      - name: Build
+        run: cargo build --release
+
+      - name: Create bundle
+        run: |
+          set -eu
+          cd dev-scripts
+          ./make-linux-bundle.sh ../target/release/touchHLE
+          cp get-make-it-rain.sh run-make-it-rain.sh touchHLE_linux_bundle/
+          mkdir touchHLE_linux_bundle/touchHLE_apps
+          cp ../touchHLE_apps/README.txt touchHLE_linux_bundle/touchHLE_apps/
+          mv touchHLE_linux_bundle ..
+
+      - uses: actions/upload-artifact@main
+        with:
+          name: MakeItRain_Linux_x86_64
+          path: touchHLE_linux_bundle/
+
+  build-win:
+    runs-on: windows-2022
+    steps:
+      - name: Checkout
+        uses: actions/checkout@main
+        with:
+          submodules: recursive
+
+      - name: Cache Rust build artifacts
+        uses: Swatinem/rust-cache@master
+
+      - name: Try to get cached copy of Boost
+        id: cache-boost
+        uses: actions/cache@main
+        with:
+          path: vendor\boost
+          key: boost_1_81_0
+
+      - if: ${{ steps.cache-boost.outputs.cache-hit != 'true' }}
+        name: Download Boost
+        run: curl -L -o boost_1_81_0.7z "https://archives.boost.io/release/1.81.0/source/boost_1_81_0.7z"
+
+      - if: ${{ steps.cache-boost.outputs.cache-hit != 'true' }}
+        name: Extract Boost
+        run: 7z -ovendor x boost_1_81_0.7z && ren vendor\boost_1_81_0 boost
+
+      - name: Setup CMake
+        uses: lukka/get-cmake@latest
+        with:
+          cmakeVersion: "~3.29.0"
+
+      - name: Build
+        run: cargo build --release
+
+      - name: Create bundle
+        shell: bash
+        run: |
+          set -eu
+          cd dev-scripts
+          ./make-windows-bundle.sh ../target/release/touchHLE.exe
+          cp get-make-it-rain.ps1 touchHLE_windows_bundle/
+          cat > touchHLE_windows_bundle/Run-Make-It-Rain.bat <<'EOF'
+          @echo off
+          cd /d "%~dp0"
+          powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0get-make-it-rain.ps1" -Run
+          if errorlevel 1 pause
+          EOF
+          mkdir touchHLE_windows_bundle/touchHLE_apps
+          cp ../touchHLE_apps/README.txt touchHLE_windows_bundle/touchHLE_apps/
+          mv touchHLE_windows_bundle ..
+
+      - uses: actions/upload-artifact@main
+        with:
+          name: MakeItRain_Windows_x86_64
+          path: touchHLE_windows_bundle/
+
+  build-android:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@main
+        with:
+          submodules: recursive
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Cache Rust build artifacts
+        uses: actions/cache@main
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-android-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-android-
+
+      - name: Try to get cached copy of Boost
+        id: cache-boost
+        uses: actions/cache@main
+        with:
+          path: vendor/boost
+          key: boost_1_81_0
+
+      - if: ${{ steps.cache-boost.outputs.cache-hit != 'true' }}
+        name: Download Boost
+        run: curl -L -o boost_1_81_0.7z "https://archives.boost.io/release/1.81.0/source/boost_1_81_0.7z"
+
+      - if: ${{ steps.cache-boost.outputs.cache-hit != 'true' }}
+        name: Extract Boost
+        run: 7z -ovendor x boost_1_81_0.7z && mv vendor/boost_1_81_0 vendor/boost
+
+      - name: Try to get cached copy of cmake
+        id: cache-cmake
+        uses: actions/cache@main
+        with:
+          path: vendor/cmake
+          key: cmake_3_31_6_linux
+
+      - if: ${{ steps.cache-cmake.outputs.cache-hit != 'true' }}
+        name: Download Cmake
+        run: curl -L -O "https://github.com/Kitware/CMake/releases/download/v3.31.6/cmake-3.31.6-linux-x86_64.tar.gz"
+
+      - if: ${{ steps.cache-cmake.outputs.cache-hit != 'true' }}
+        name: Extract Cmake
+        run: tar xzvf "cmake-3.31.6-linux-x86_64.tar.gz" -C vendor && mv vendor/cmake-3.31.6-linux-x86_64 vendor/cmake
+
+      - name: Install AArch64 Android Rust toolchain
+        run: rustup target add aarch64-linux-android
+
+      - name: Install cargo-ndk
+        run: cargo install cargo-ndk@3.5.4
+
+      - name: Try to get a cached copy of Gradle
+        id: cache-gradle
+        uses: actions/cache@main
+        with:
+          path: gradle
+          key: gradle-8.11.1
+
+      - if: ${{ steps.cache-gradle.outputs.cache-hit != 'true' }}
+        name: Download Gradle
+        run: curl -L -o gradle-8.11.1-bin.zip "https://services.gradle.org/distributions/gradle-8.11.1-bin.zip"
+
+      - if: ${{ steps.cache-gradle.outputs.cache-hit != 'true' }}
+        name: Extract Gradle
+        run: 7z -ogradle x gradle-8.11.1-bin.zip
+
+      - name: Try to get a cached copy of Android NDK
+        id: cache-android-ndk
+        uses: actions/cache@main
+        with:
+          path: android-ndk
+          key: android-ndk-r25c
+
+      - if: ${{ steps.cache-android-ndk.outputs.cache-hit != 'true' }}
+        name: Download Android NDK
+        run: curl -L -o android-ndk-r25c-linux.zip "https://dl.google.com/android/repository/android-ndk-r25c-linux.zip"
+
+      - if: ${{ steps.cache-android-ndk.outputs.cache-hit != 'true' }}
+        name: Extract Android NDK
+        run: 7z -oandroid-ndk -snld x android-ndk-r25c-linux.zip
+
+      - name: Link Android NDK
+        run: ln -s $PWD'/android-ndk/android-ndk-r25c' $ANDROID_SDK_ROOT'/ndk/25.2.9519653'
+
+      - name: Generate local.properties file
+        run: echo 'sdk.dir='$ANDROID_SDK_ROOT > android/local.properties
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      # Without the HYPERHLE_* secrets (e.g. on a fork) Gradle signs with the
+      # keystore committed in android/keystore.
+      - name: Build for Android
+        run: cd android && ../gradle/gradle-8.11.1/bin/gradle assembleRelease && mv app/build/outputs/apk/release/HyperHLE-Reborn-release.apk ../HyperHLE-Reborn.apk
+        env:
+          HYPERHLE_KEYSTORE_B64: ${{ secrets.HYPERHLE_KEYSTORE_B64 }}
+          HYPERHLE_KEYSTORE_PASSWORD: ${{ secrets.HYPERHLE_KEYSTORE_PASSWORD }}
+          HYPERHLE_KEY_ALIAS: ${{ secrets.HYPERHLE_KEY_ALIAS }}
+          ANDROID_NDK_ROOT: '/usr/local/lib/android/sdk/ndk/25.2.9519653'
+          CMAKE: ${{ github.workspace }}/vendor/cmake/bin/cmake
+
+      - uses: actions/upload-artifact@main
+        with:
+          name: MakeItRain_Android_AArch64
+          path: HyperHLE-Reborn.apk
+
+  smoke-test-linux:
+    # Runs the real game under a virtual display (software OpenGL) and keeps
+    # it going for a minute. The IPA is downloaded into the runner's scratch
+    # space and is not uploaded anywhere; only the emulator log is.
+    needs: [build-linux]
+    if: ${{ github.event_name != 'workflow_dispatch' || inputs.run_smoke_test }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout (scripts only)
+        uses: actions/checkout@main
+
+      - name: Install runtime dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq \
+            xvfb libgl1 libegl1 libgl1-mesa-dri libasound2t64 libpulse0 || \
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq \
+            xvfb libgl1 libegl1 libgl1-mesa-dri libasound2 libpulse0
+
+      - uses: actions/download-artifact@main
+        with:
+          name: MakeItRain_Linux_x86_64
+          path: bundle
+
+      - name: Download Make It Rain
+        run: |
+          set -eu
+          chmod +x bundle/touchHLE bundle/*.sh dev-scripts/*.sh
+          ./dev-scripts/get-make-it-rain.sh "$RUNNER_TEMP/apps"
+          ls -la "$RUNNER_TEMP/apps"
+
+      - name: Run Make It Rain
+        run: |
+          set -eu
+          cd bundle
+          IPA="$(ls "$RUNNER_TEMP"/apps/*.ipa | head -n 1)"
+          xvfb-run -a -s "-screen 0 1280x1024x24" \
+            ../dev-scripts/ci-run-app.sh ./touchHLE 60 "$IPA"
+
+      - name: Upload emulator log
+        if: ${{ always() }}
+        uses: actions/upload-artifact@main
+        with:
+          name: MakeItRain_Linux_smoke_log
+          path: bundle/run.log
+          if-no-files-found: ignore

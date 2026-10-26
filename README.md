@@ -50,6 +50,16 @@ cargo run --release -- path/to/app.app
 
 For iOS build steps and the unsigned IPAs, see [`platform/ios`](platform/ios/README.md). For Android build steps, see the `android/` directory and the [CI workflow](https://github.com/KlugKlugTG/HyperHLE-Reborn/actions/workflows/HyperHLE_release.yml). Command-line options are documented in [`OPTIONS_HELP.txt`](OPTIONS_HELP.txt); notable compatibility changes are tracked in [`CHANGELOG.md`](CHANGELOG.md).
 
+## Running Make It Rain
+
+The game's IPA is not included in this repository or in any build. Helper scripts download it from the Internet Archive onto your own device, so only use them if you are entitled to the app.
+
+- **Linux:** in the bundle from the `MakeItRain_Linux_x86_64` artifact, run `./run-make-it-rain.sh`. It downloads the IPA into `touchHLE_apps/` and starts the game. From a source checkout, `dev-scripts/run-make-it-rain.sh` does the same using `target/release/touchHLE` or `cargo run --release`.
+- **Windows:** in the `MakeItRain_Windows_x86_64` bundle, double-click `Run-Make-It-Rain.bat`. Or run `.\get-make-it-rain.ps1` (add `-Run` to launch it).
+- **Android:** install the APK from the `MakeItRain_Android_AArch64` artifact, then either open the in-app Internet Archive browser and download *Make It Rain* from the `legacy_ios_apps` item, or put the `.ipa` in the app's `touchHLE_apps` folder. It will appear in the app picker.
+
+All three builds come from the [Build HyperHLE for Make It Rain](.github/workflows/make-it-rain.yml) workflow. Run it from the Actions tab (*Run workflow*); it also runs the game on Linux for a minute as a smoke test and uploads the emulator log.
+
 ## Community
 
 Join the [HyperHLE Discord server](https://discord.gg/ZpEkAV47H9) to discuss the project and contribute.
