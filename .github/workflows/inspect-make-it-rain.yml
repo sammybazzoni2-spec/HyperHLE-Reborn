@@ -1,9 +1,8 @@
 name: Inspect Make It Rain IPA
 
-# Downloads the Make It Rain IPA on the runner and uploads only small
-# diagnostic metadata (Info.plist, file listing, class-name strings) so an
-# emulator compatibility problem can be debugged. The IPA itself is not
-# uploaded anywhere.
+# Diagnostic only: downloads the IPA on the runner, prints its Info.plist, file
+# listing and a few binary strings to the job log, and discards it. Nothing from
+# the IPA is uploaded as an artifact.
 
 on:
   workflow_dispatch:
@@ -11,62 +10,44 @@ on:
     paths:
       - .github/workflows/inspect-make-it-rain.yml
 
-permissions:
-  contents: write
-
 jobs:
   inspect:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@main
+      - name: Checkout
+        uses: actions/checkout@main
 
       - name: Download IPA
+        run: ./dev-scripts/get-make-it-rain.sh "$RUNNER_TEMP/apps"
+
+      - name: Unpack and inspect
         run: |
           set -eu
-          chmod +x dev-scripts/get-make-it-rain.sh
-          ./dev-scripts/get-make-it-rain.sh "$RUNNER_TEMP/apps"
-
-      - name: Extract metadata
-        run: |
-          set -eu
-          out="$GITHUB_WORKSPACE/inspect"
-          work="$RUNNER_TEMP/ipa"
-          mkdir -p "$out" "$work"
-          ipa="$(ls "$RUNNER_TEMP"/apps/*.ipa | head -n 1)"
-          unzip -q "$ipa" -d "$work"
-          app="$(ls -d "$work"/Payload/*.app | head -n 1)"
-
-          (cd "$work" && find Payload -printf '%P\t%s\n' | sort) > "$out/listing.txt"
-
-          python3 - "$app/Info.plist" > "$out/Info.plist.json" <<'EOF'
-          import json, plistlib, sys
+          WORK="$RUNNER_TEMP/ipa"
+          mkdir -p "$WORK"
+          unzip -q "$RUNNER_TEMP"/apps/*.ipa -d "$WORK"
+          APP="$(ls -d "$WORK"/Payload/*.app)"
+          echo "::group::Top-level files in the .app"
+          ls -la "$APP"
+          echo "::endgroup::"
+          echo "::group::Nibs, storyboards and frameworks"
+          find "$APP" -name '*.nib' -o -name '*.storyboard*' -o -name '*.framework' -o -name '*.dylib' | sort
+          echo "::endgroup::"
+          echo "::group::Info.plist"
+          python3 - "$APP/Info.plist" <<'EOF'
+          import plistlib, pprint, sys
           with open(sys.argv[1], 'rb') as f:
-              print(json.dumps(plistlib.load(f), indent=2, default=repr))
+              pprint.pprint(plistlib.load(f))
           EOF
-
-          exe="$(python3 -c "import plistlib,sys;print(plistlib.load(open(sys.argv[1],'rb')).get('CFBundleExecutable',''))" "$app/Info.plist")"
-          echo "executable: $exe" > "$out/binary.txt"
-          file "$app/$exe" >> "$out/binary.txt" || true
-          strings -n 4 "$app/$exe" > "$work/strings.txt" || true
-          grep -E 'OBJC_CLASS_\$_' "$work/strings.txt" | sort -u | head -n 3000 > "$out/classes.txt" || true
-          grep -iE 'appdelegate|mainwindow|\.nib|makeKeyAndVisible|UIWindow|applicationDidFinishLaunching|setWindow|rootViewController|EAGLView|Cocos|AdColony|Chartboost|Flurry|TestFlight|Crittercism' \
-            "$work/strings.txt" | sort -u | head -n 1500 > "$out/interesting-strings.txt" || true
-          ls -la "$out"
-
-      - uses: actions/upload-artifact@main
-        with:
-          name: MakeItRain_IPA_metadata
-          path: inspect/
-
-      # Also publish the (small, text-only) metadata on its own branch so it
-      # can be read without downloading the artifact.
-      - name: Push metadata branch
-        run: |
-          set -eu
-          cd inspect
-          git init -q -b ipa-metadata
-          git config user.name "github-actions"
-          git config user.email "github-actions@users.noreply.github.com"
-          git add -A
-          git commit -q -m "Make It Rain IPA metadata"
-          git push -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" ipa-metadata
+          echo "::endgroup::"
+          BIN="$APP/$(python3 -c "import plistlib,sys;print(plistlib.load(open(sys.argv[1],'rb'))['CFBundleExecutable'])" "$APP/Info.plist")"
+          echo "::group::Binary info"
+          file "$BIN"
+          ls -la "$BIN"
+          echo "::endgroup::"
+          echo "::group::Window and app delegate strings"
+          strings -a "$BIN" | grep -E "UIWindow|makeKeyAndVisible|MainWindow|AppDelegate|applicationDidFinishLaunching|didFinishLaunchingWithOptions|UIApplicationMain|rootViewController|EAGLView|CAEAGLLayer|ViewController" | sort -u | head -120
+          echo "::endgroup::"
+          echo "::group::Third-party SDK strings"
+          strings -a "$BIN" | grep -iE "adcolony|flurry|chartboost|facebook|tapjoy|openfeint|gamecenter|crashlytics|heyzap" | sort -u | head -60
+          echo "::endgroup::"
